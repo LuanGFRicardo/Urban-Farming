@@ -1,12 +1,12 @@
-# Bibliotecas
 from flask import Blueprint, render_template
-from flask_login import login_required
 
-# Rota principal
-bp = Blueprint('main', __name__)
+# Criar um Blueprint
+main = Blueprint('main', __name__)
 
-# Rota inicial
-@bp.route('/')
-@login_required
-def inicial():
+@main.route('/')
+def home():
     return render_template('home.html')
+
+# Função para registrar o Blueprint
+def registrar_blueprints(app):
+    app.register_blueprint(main)
