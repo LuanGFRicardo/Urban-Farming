@@ -46,9 +46,14 @@ class DadosColetados(db.Model):
     status_bomba_agua = db.Column(db.String)
     status_ventoinha = db.Column(db.String)
 
+from extensions import db
+
 class Configuracoes(db.Model):
     __tablename__ = 'configuracoes'
+    
     id = db.Column(db.Integer, primary_key=True)
     nome_config = db.Column(db.String, nullable=False)
-    valor_config = db.Column(db.String, nullable=False)
     produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'))
+    luminosidade_leds1 = db.Column(db.Float, default=0)
+    luminosidade_leds2 = db.Column(db.Float, default=0)
+    luminosidade_leds3 = db.Column(db.Float, default=0)

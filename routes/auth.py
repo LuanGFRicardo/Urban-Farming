@@ -4,6 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from extensions import db
 from models import Usuario, DadosColetados, Microcontroladores, Configuracoes
+import sqlite3
 
 # Definir rota de autenticação
 bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -104,15 +105,76 @@ def configuracoes():
     microcontroladores = Microcontroladores.query.all()  # Busca todos os microcontroladores
     configuracoes = Configuracoes.query.all()  # Busca todas as configurações
 
+    # Variáveis para armazenar os valores dos LEDs
+    luminosidade_leds1 = 0
+    luminosidade_leds2 = 0
+    luminosidade_leds3 = 0
+    
+    # Obtenha a configuração atual se o método for GET
+    if request.method == 'GET':
+        configuracao = Configuracoes.query.first()  # Ou filtre por produto_id, se necessário
+        if configuracao:
+            luminosidade_leds1 = configuracao.luminosidade_leds1
+            luminosidade_leds2 = configuracao.luminosidade_leds2
+            luminosidade_leds3 = configuracao.luminosidade_leds3
+
     if request.method == 'POST':
         microcontrolador_id = request.form['microcontrolador']
-        nova_intensidade = request.form['intensidade']
         
-        # Aqui você pode adicionar a lógica para atualizar a configuração no banco
-        configuracao = Configuracoes.query.filter_by(produto_id=microcontrolador_id).first()
-        if configuracao:
-            configuracao.valor_config = nova_intensidade
-            db.session.commit()
-            flash('Configuração atualizada com sucesso!', 'sucesso')
+        if not microcontrolador_id:
+            flash('Por favor, selecione um microcontrolador.', 'erro')
+            return redirect(url_for('auth.configuracoes'))
 
-    return render_template('configuracoes.html', microcontroladores=microcontroladores, configuracoes=configuracoes)
+        try:
+            luminosidade_leds1 = float(request.form.get('luminosidade_leds1', 0))
+            luminosidade_leds2 = float(request.form.get('luminosidade_leds2', 0))
+            luminosidade_leds3 = float(request.form.get('luminosidade_leds3', 0))
+            
+            configuracao = Configuracoes.query.filter_by(produto_id=microcontrolador_id).first()
+            
+            if configuracao:
+                configuracao.luminosidade_leds1 = luminosidade_leds1
+                configuracao.luminosidade_leds2 = luminosidade_leds2
+                configuracao.luminosidade_leds3 = luminosidade_leds3
+                db.session.commit()
+                flash('Configuração atualizada com sucesso!', 'sucesso')
+            else:
+                flash('Configuração não encontrada para este microcontrolador!', 'erro')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ocorreu um erro: {str(e)}', 'erro')
+
+    return render_template('configuracoes.html', 
+                           microcontroladores=microcontroladores, 
+                           configuracoes=configuracoes,
+                           luminosidade_leds1=luminosidade_leds1,
+                           luminosidade_leds2=luminosidade_leds2,
+                           luminosidade_leds3=luminosidade_leds3)
+
+@bp.route('/atualizar_leds', methods=['POST'])
+@login_required
+def atualizar_leds():
+    luminosidade_leds1 = request.form.get('luminosidade_leds1', 0)
+    luminosidade_leds2 = request.form.get('luminosidade_leds2', 0)
+    luminosidade_leds3 = request.form.get('luminosidade_leds3', 0)
+    
+    # Aqui, você pode usar o ID do produto (produto_id) se necessário
+    produto_id = 1  # Defina um ID de produto que você tenha
+
+    try:
+        # Buscando a configuração correspondente ao produto_id
+        configuracao = Configuracoes.query.filter_by(produto_id=produto_id).first()
+        
+        if configuracao:
+            configuracao.luminosidade_leds1 = luminosidade_leds1
+            configuracao.luminosidade_leds2 = luminosidade_leds2
+            configuracao.luminosidade_leds3 = luminosidade_leds3
+            db.session.commit()
+            flash('Configurações atualizadas com sucesso!', 'sucesso')
+        else:
+            flash('Configuração não encontrada para o produto!', 'erro')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocorreu um erro: {str(e)}', 'erro')
+    
+    return redirect(url_for('auth.configuracoes'))

@@ -1,0 +1,8 @@
+app/app.py
+app/instance/monitor.db
+app/static/dashboard.css
+app/static/logo.png
+app/static/styles.css
+app/templates/adjustments.html
+app/templates/dashboard.html
+app/templates/index.html
