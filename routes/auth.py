@@ -12,7 +12,7 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.inicial'))
+        return redirect(url_for('main.home'))
     
     if request.method == 'POST':
         nome_usuario = request.form['nome_usuario']
@@ -21,7 +21,7 @@ def login():
         
         if usuario and usuario.checar_senha(senha):
             login_user(usuario)
-            return redirect(url_for('main.inicial'))
+            return redirect(url_for('main.home'))
         
         flash('Login inválido. Verifique o nome de usuário e/ou a senha.', 'erro')  
     return render_template('login.html')
@@ -30,7 +30,7 @@ def login():
 @bp.route('/registro', methods=['GET', 'POST'])
 def registro():
     if current_user.is_authenticated:
-        return redirect(url_for('main.inicial'))
+        return redirect(url_for('main.home'))
     
     if request.method == 'POST':
         nome_usuario = request.form['nome_usuario']

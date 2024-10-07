@@ -12,7 +12,7 @@
         <nav>
             <ul>
                 {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('main.inicial') }}">Início</a></li>
+                    <li><a href="{{ url_for('main.home') }}">Início</a></li>
                     <li><a href="{{ url_for('auth.perfil') }}">Perfil</a></li>
                     <li><a href="{{ url_for('auth.dashboard') }}">Dashboard</a></li>
                     <li><a href="{{ url_for('auth.configuracoes') }}">Configurações</a></li>
