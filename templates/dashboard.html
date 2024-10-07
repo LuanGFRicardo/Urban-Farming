@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Dashboard</h1>
+    <p>Bem-vindo(a) ao seu Dashboard, {{ current_user.nome_usuario }}!</p>
+
+    <h2>Estatísticas</h2>
+    <canvas id="estadosAmbientais" width="400" height="200"></canvas>
+    
+    <script>
+        const ctx = document.getElementById('estadosAmbientais').getContext('2d');
+        const estadosAmbientaisChart = new Chart(ctx, {
+            type: 'line', // Tipo de gráfico: 'line', 'bar', etc.
+            data: {
+                labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'], // Exemplo de rótulos
+                datasets: [{
+                    label: 'Temperatura (°C)', // Nome da série
+                    data: [{{ data_temperatura|join(',') }}], // Dados de temperatura
+                    borderColor: 'rgba(255, 99, 132, 1)', // Cor da linha
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)', // Cor de fundo
+                    borderWidth: 1
+                }, {
+                    label: 'Umidade (%)',
+                    data: [{{ data_umidade|join(',') }}], // Dados de umidade
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 1
+                }, {
+                    label: 'PMW (%)',
+                    data: [{{ data_pmw|join(',') }}], // Dados de PMW
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                    borderWidth: 1
+                }, {
+                    label: 'Umidade do Solo (%)',
+                    data: [{{ data_umidade_solo|join(',') }}], // Dados de Umidade do Solo
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+
+    <ul>
+        <li>Temperatura Média do Ambiente: {{ media_temperatura | round(2) }} °C</li>
+        <li>Umidade Média do Ambiente: {{ media_umidade | round(2) }} %</li>
+        <li>Intensidade da Luz Média: {{ media_luminosidade | round(2) }} Lux</li>
+        <li>PMW Médio: {{ media_pmw | round(2) }} %</li>
+        <li>Umidade do Solo Média: {{ media_umidade_solo | round(2) }} %</li>
+    </ul>
+
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Configurações</h1>
+    <p>Bem-vindo (a) a suas Configurações, {{ current_user.nome_usuario }}!</p>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="microcontrolador">Selecione o Microcontrolador:</label>
+            <select name="microcontrolador" id="microcontrolador" class="form-control" required>
+                <option value="" disabled selected>Escolha um microcontrolador</option>
+                {% for mc in microcontroladores %}
+                <option value="{{ mc.id }}">{{ mc.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="intensidade">Intensidade da Luz:</label>
+            <input type="text" name="intensidade" id="intensidade" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Atualizar Configuração</button>
+    </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+</div>
+{% endblock %}
