@@ -5,6 +5,8 @@ from werkzeug.security import generate_password_hash
 from extensions import db
 from models import Usuario, DadosColetados, Microcontroladores, Configuracoes
 import sqlite3
+import requests
+import jsonify
 
 # Definir rota de autenticação
 bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -87,7 +89,7 @@ def dashboard():
     # Definindo uma média de luminosidade com valor padrão
     media_luminosidade = 0  # Substitua pelo cálculo real quando disponível
 
-    return render_template('dashboard.html', 
+    return render_template('dashboard-hardcode.html', 
                            media_temperatura=media_temperatura,
                            media_umidade=media_umidade,
                            media_pmw=media_pmw,
@@ -144,7 +146,7 @@ def configuracoes():
             db.session.rollback()
             flash(f'Ocorreu um erro: {str(e)}', 'erro')
 
-    return render_template('configuracoes.html', 
+    return render_template('configuracoes-hardcode.html', 
                            microcontroladores=microcontroladores, 
                            configuracoes=configuracoes,
                            luminosidade_leds1=luminosidade_leds1,
@@ -154,27 +156,42 @@ def configuracoes():
 @bp.route('/atualizar_leds', methods=['POST'])
 @login_required
 def atualizar_leds():
-    luminosidade_leds1 = request.form.get('luminosidade_leds1', 0)
-    luminosidade_leds2 = request.form.get('luminosidade_leds2', 0)
-    luminosidade_leds3 = request.form.get('luminosidade_leds3', 0)
-    
-    # Aqui, você pode usar o ID do produto (produto_id) se necessário
-    produto_id = 1  # Defina um ID de produto que você tenha
-
     try:
-        # Buscando a configuração correspondente ao produto_id
-        configuracao = Configuracoes.query.filter_by(produto_id=produto_id).first()
-        
-        if configuracao:
-            configuracao.luminosidade_leds1 = luminosidade_leds1
-            configuracao.luminosidade_leds2 = luminosidade_leds2
-            configuracao.luminosidade_leds3 = luminosidade_leds3
-            db.session.commit()
-            flash('Configurações atualizadas com sucesso!', 'sucesso')
+        dados = request.get_json()  # Obter os dados JSON enviados pelo AJAX
+        luminosidade_leds1 = dados['luminosidade_leds1']
+        luminosidade_leds2 = dados['luminosidade_leds2']
+        luminosidade_leds3 = dados['luminosidade_leds3']
+        microcontrolador_id = dados['microcontrolador']
+
+        # Aqui você pode fazer a comunicação com o ESP32 via HTTP
+        # Exemplo de envio dos dados para o ESP32 (ajuste o IP para o seu dispositivo ESP32)
+        esp32_ip = "http://192.168.1.100/update_leds"  # Endereço do ESP32
+        response = requests.post(esp32_ip, json={
+            "led1": luminosidade_leds1,
+            "led2": luminosidade_leds2,
+            "led3": luminosidade_leds3
+        })
+
+        if response.status_code == 200:
+            flash('Configurações enviadas com sucesso!', 'sucesso')
+            return jsonify({"success": True}), 200
         else:
-            flash('Configuração não encontrada para o produto!', 'erro')
+            flash('Falha ao enviar configurações ao microcontrolador.', 'erro')
+            return jsonify({"success": False}), 500
+
     except Exception as e:
-        db.session.rollback()
         flash(f'Ocorreu um erro: {str(e)}', 'erro')
+        return jsonify({"success": False}), 500
     
-    return redirect(url_for('auth.configuracoes'))
+@bp.route('/microcontrolador/<int:microcontrolador_id>', methods=['GET'])
+@login_required
+def obter_dados_microcontrolador(microcontrolador_id):
+    microcontrolador = Microcontroladores.query.get_or_404(microcontrolador_id)
+    
+    dados = {
+        "nome": microcontrolador.nome,
+        "descricao": microcontrolador.descricao,
+        "empresa": microcontrolador.empresa
+    }
+    
+    return jsonify(dados)

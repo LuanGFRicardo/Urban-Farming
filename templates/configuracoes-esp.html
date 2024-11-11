@@ -7,7 +7,7 @@
     <!-- Título principal -->
     <div class="text-center mb-5">
         <h1 class="display-4 text-success">Configurações de LEDs</h1>
-        <p class="lead">Bem-vindo (a), {{ current_user.nome_usuario }}! Ajuste as configurações de LEDs abaixo.</p>
+        <p class="lead">Bem-vindo (a), {{ current_user.nome_usuario }}! Ajuste as configurações de LEDs abaixo.</p><br>
     </div>
 
     <!-- Formulário -->
@@ -54,7 +54,7 @@
         </div>
 
         <!-- Botão de Submit -->
-        <button type="submit" class="btn btn-success btn-lg btn-block mt-4">Atualizar Configurações</button>
+        <button type="button" class="btn btn-success btn-lg btn-block mt-4" onclick="enviarConfiguracoes()">Atualizar Configurações</button>
     </form>    
 
     <!-- Flash Messages -->
@@ -73,22 +73,43 @@
 
 <script>
     function updatePercentage(ledId, inputElement) {
-        // Obter o valor inserido
         let value = inputElement.value;
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
 
-        // Garantir que o valor esteja entre 0 e 100
-        if (value < 0) {
-            value = 0;
-        } else if (value > 100) {
-            value = 100;
-        }
-
-        // Atualizar a visualização
         document.getElementById(`${ledId}-percentage`).innerText = `${value}%`;
         document.getElementById(`${ledId}-circle`).style.width = `${value}%`;
-
-        // Atualizar o campo de entrada com o valor corrigido
         inputElement.value = value;
+    }
+
+    // Função para enviar as configurações para o servidor
+    function enviarConfiguracoes() {
+        let luminosidade_leds1 = document.getElementById("luminosidade_leds1").value;
+        let luminosidade_leds2 = document.getElementById("luminosidade_leds2").value;
+        let luminosidade_leds3 = document.getElementById("luminosidade_leds3").value;
+        let microcontrolador = document.getElementById("microcontrolador").value;
+
+        fetch("/auth/atualizar_leds", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                luminosidade_leds1: luminosidade_leds1,
+                luminosidade_leds2: luminosidade_leds2,
+                luminosidade_leds3: luminosidade_leds3,
+                microcontrolador: microcontrolador,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Configurações enviadas com sucesso!');
+            } else {
+                alert('Erro ao enviar configurações.');
+            }
+        })
+        .catch(error => console.log('Erro: ', error));
     }
 </script>
 {% endblock %}
