@@ -1,6 +1,7 @@
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 class Produtos(db.Model):
     __tablename__ = 'produtos'
@@ -57,3 +58,10 @@ class Configuracoes(db.Model):
     luminosidade_leds1 = db.Column(db.Float, default=0)
     luminosidade_leds2 = db.Column(db.Float, default=0)
     luminosidade_leds3 = db.Column(db.Float, default=0)
+
+# Modelo para armazenar os dados do sensor
+class SensorData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    temperature = db.Column(db.Float)
+    humidity = db.Column(db.Float)

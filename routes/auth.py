@@ -1,12 +1,20 @@
 # Bibliotecas
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from extensions import db
-from models import Usuario, DadosColetados, Microcontroladores, Configuracoes
+from models import Usuario, SensorData, Microcontroladores, Configuracoes
 import sqlite3
 import requests
-import jsonify
+
+
+# Variáveis globais
+luminosidade_leds1 = 0.0
+luminosidade_leds2 = 0.0
+luminosidade_leds3 = 0.0
+temperature_limit = 30.0
+humidity_limit = 50.0
+distance_limit = 50.0
 
 # Definir rota de autenticação
 bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -15,7 +23,7 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.home'))
+        return redirect(url_for('main.home'))  # Redireciona se já estiver autenticado
     
     if request.method == 'POST':
         nome_usuario = request.form['nome_usuario']
@@ -24,10 +32,11 @@ def login():
         
         if usuario and usuario.checar_senha(senha):
             login_user(usuario)
-            return redirect(url_for('main.home'))
+            return redirect(url_for('main.home'))  # Redireciona após login bem-sucedido
         
-        flash('Login inválido. Verifique o nome de usuário e/ou a senha.', 'erro')  
+        flash('Login inválido. Verifique o nome de usuário e/ou a senha.', 'erro')
     return render_template('login.html')
+
 
 # Rota de registro
 @bp.route('/registro', methods=['GET', 'POST'])
@@ -104,84 +113,87 @@ def dashboard():
 @bp.route('/configuracoes', methods=['GET', 'POST'])
 @login_required
 def configuracoes():
-    microcontroladores = Microcontroladores.query.all()  # Busca todos os microcontroladores
-    configuracoes = Configuracoes.query.all()  # Busca todas as configurações
+    global luminosidade_leds1, luminosidade_leds2, luminosidade_leds3
+    global temperature_limit, humidity_limit, distance_limit
 
-    # Variáveis para armazenar os valores dos LEDs
-    luminosidade_leds1 = 0
-    luminosidade_leds2 = 0
-    luminosidade_leds3 = 0
-    
-    # Obtenha a configuração atual se o método for GET
-    if request.method == 'GET':
-        configuracao = Configuracoes.query.first()  # Ou filtre por produto_id, se necessário
-        if configuracao:
-            luminosidade_leds1 = configuracao.luminosidade_leds1
-            luminosidade_leds2 = configuracao.luminosidade_leds2
-            luminosidade_leds3 = configuracao.luminosidade_leds3
+    microcontroladores = Microcontroladores.query.all()  # Busca todos os microcontroladores
+
+    # Configurações iniciais
+    settings = {
+        'led1_pwm': luminosidade_leds1,
+        'led2_pwm': luminosidade_leds2,
+        'led3_pwm': luminosidade_leds3,
+    }
+
+    settingst = {
+        'temperature_limit': temperature_limit,
+        'humidity_limit': humidity_limit,
+        'distance_limit': distance_limit,
+    }
 
     if request.method == 'POST':
         microcontrolador_id = request.form['microcontrolador']
-        
+
         if not microcontrolador_id:
             flash('Por favor, selecione um microcontrolador.', 'erro')
             return redirect(url_for('auth.configuracoes'))
 
         try:
+            # Atualizar luminosidade dos LEDs
             luminosidade_leds1 = float(request.form.get('luminosidade_leds1', 0))
             luminosidade_leds2 = float(request.form.get('luminosidade_leds2', 0))
             luminosidade_leds3 = float(request.form.get('luminosidade_leds3', 0))
-            
-            configuracao = Configuracoes.query.filter_by(produto_id=microcontrolador_id).first()
-            
-            if configuracao:
-                configuracao.luminosidade_leds1 = luminosidade_leds1
-                configuracao.luminosidade_leds2 = luminosidade_leds2
-                configuracao.luminosidade_leds3 = luminosidade_leds3
-                db.session.commit()
-                flash('Configuração atualizada com sucesso!', 'sucesso')
-            else:
-                flash('Configuração não encontrada para este microcontrolador!', 'erro')
+
+            # Atualizar configurações gerais
+            temperature_limit = float(request.form.get('temperature_limit', 30.0))
+            humidity_limit = float(request.form.get('humidity_limit', 50.0))
+            distance_limit = float(request.form.get('distance_limit', 50.0))
+
+            # Atualizar settings e settingst
+            settings['led1_pwm'] = luminosidade_leds1
+            settings['led2_pwm'] = luminosidade_leds2
+            settings['led3_pwm'] = luminosidade_leds3
+
+            settingst['temperature_limit'] = temperature_limit
+            settingst['humidity_limit'] = humidity_limit
+            settingst['distance_limit'] = distance_limit
+
+            flash('Configuração atualizada com sucesso!', 'sucesso')
         except Exception as e:
-            db.session.rollback()
             flash(f'Ocorreu um erro: {str(e)}', 'erro')
 
-    return render_template('configuracoes-hardcode.html', 
-                           microcontroladores=microcontroladores, 
-                           configuracoes=configuracoes,
-                           luminosidade_leds1=luminosidade_leds1,
-                           luminosidade_leds2=luminosidade_leds2,
-                           luminosidade_leds3=luminosidade_leds3)
+    return render_template(
+        'configuracoes-hardcode.html',
+        microcontroladores=microcontroladores,
+        luminosidade_leds1=luminosidade_leds1,
+        luminosidade_leds2=luminosidade_leds2,
+        luminosidade_leds3=luminosidade_leds3,
+        settings=settings,
+        settingst=settingst
+    )
+
+
 
 @bp.route('/atualizar_leds', methods=['POST'])
 @login_required
 def atualizar_leds():
     try:
-        dados = request.get_json()  # Obter os dados JSON enviados pelo AJAX
+        dados = request.get_json()
         luminosidade_leds1 = dados['luminosidade_leds1']
         luminosidade_leds2 = dados['luminosidade_leds2']
         luminosidade_leds3 = dados['luminosidade_leds3']
-        microcontrolador_id = dados['microcontrolador']
 
-        # Aqui você pode fazer a comunicação com o ESP32 via HTTP
-        # Exemplo de envio dos dados para o ESP32 (ajuste o IP para o seu dispositivo ESP32)
-        esp32_ip = "http://192.168.1.100/update_leds"  # Endereço do ESP32
-        response = requests.post(esp32_ip, json={
-            "led1": luminosidade_leds1,
-            "led2": luminosidade_leds2,
-            "led3": luminosidade_leds3
-        })
 
-        if response.status_code == 200:
-            flash('Configurações enviadas com sucesso!', 'sucesso')
-            return jsonify({"success": True}), 200
-        else:
-            flash('Falha ao enviar configurações ao microcontrolador.', 'erro')
-            return jsonify({"success": False}), 500
 
+    except requests.exceptions.ConnectionError:
+        flash('Falha na conexão com o microcontrolador.', 'erro')
+        return jsonify({"success": False, "error": "ConnectionError"}), 500
+    except requests.exceptions.Timeout:
+        flash('O microcontrolador não respondeu a tempo.', 'erro')
+        return jsonify({"success": False, "error": "Timeout"}), 500
     except Exception as e:
         flash(f'Ocorreu um erro: {str(e)}', 'erro')
-        return jsonify({"success": False}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
     
 @bp.route('/microcontrolador/<int:microcontrolador_id>', methods=['GET'])
 @login_required
@@ -195,3 +207,99 @@ def obter_dados_microcontrolador(microcontrolador_id):
     }
     
     return jsonify(dados)
+
+# ESP32
+sensor_data = {
+    'temperature': 0.0,
+    'humidity': 0.0,
+    'distance': 0.0,
+    'led1_pwm': 0,
+    'led2_pwm': 0,
+    'led3_pwm': 0,
+    'plant_distance': 0.0,
+    'sensor_low': False,
+    'sensor_high': False,
+    'relay_pump': False,
+    'relay_fan': False,
+    'ldr_value': 0,
+    'ldr_state': 'Desligado',
+}
+
+settings = {
+    'led1_pwm': 0,
+    'led2_pwm': 0,
+    'led3_pwm': 0,
+    'temperature_limit': 30.0,
+    'humidity_limit': 50.0,
+    'distance_limit': 50.0
+   
+}
+
+settingst = {
+    'temperature_limit': 30.0,
+    'humidity_limit': 50.0,
+    'distance_limit': 50.0,
+}
+
+@bp.route('/get_sensor_data')
+def get_sensor_data():
+    return jsonify(sensor_data)
+
+@bp.route('/adjustments', methods=['GET', 'POST'])
+def adjustments():
+    global settingst
+    if request.method == 'POST':
+        # Atualiza as configurações a partir dos dados do formulário
+        settingst['temperature_limit'] = float(request.form.get('temperature_limit', 30.0))
+        settingst['humidity_limit'] = float(request.form.get('humidity_limit', 50.0))
+        settingst['distance_limit'] = float(request.form.get('distance_limit', 50.0))
+        return render_template('configuracoes-hardcode.html', settingst=settingst, message='Configurações atualizadas com sucesso!')
+    else:
+        return render_template('configuracoes-hardcode.html', settingst=settingst)
+    
+
+@bp.route('/pwm', methods=['GET', 'POST'])
+def pwm():
+    global settings
+    if request.method == 'POST':
+        # Atualiza as configurações a partir dos dados do formulário
+        settings['led1_pwm'] = int(request.form.get('led1_pwm', 0))
+        settings['led2_pwm'] = int(request.form.get('led2_pwm', 0))
+        settings['led3_pwm'] = int(request.form.get('led3_pwm', 0))
+        return render_template('PWM.html', settings=settings, message='Configurações atualizadas com sucesso!')
+    else:
+        return render_template('PWM.html', settings=settings)
+
+@bp.route('/update_data', methods=['POST'])
+def update_data():
+    global sensor_data
+    data = request.get_json()
+    if data:
+        sensor_data.update(data)
+        # Armazena temperatura e umidade no banco de dados
+        new_data = SensorData(
+            temperature=sensor_data['temperature'],
+            humidity=sensor_data['humidity']
+        )
+        db.session.add(new_data)
+        db.session.commit()
+        return jsonify({'status': 'success'}), 200
+    else:
+        return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+    
+@bp.route('/get_settings', methods=['GET'])
+def get_settings():
+    global luminosidade_leds1, luminosidade_leds2, luminosidade_leds3
+    global temperature_limit, humidity_limit, distance_limit
+
+    # Configurações atuais
+    response = {
+        "temperature_limit": temperature_limit,
+        "humidity_limit": humidity_limit,
+        "distance_limit": distance_limit,
+        "led1_pwm": luminosidade_leds1,
+        "led2_pwm": luminosidade_leds2,
+        "led3_pwm": luminosidade_leds3
+    }
+
+    return jsonify(response), 200

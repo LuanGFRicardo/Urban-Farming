@@ -22,9 +22,9 @@ DHT dht(DHTPIN, DHTTYPE);
 #define RELAY_PUMP_PIN 14
 #define RELAY_FAN_PIN 32
 
-const char* ssid = "virus.exe";
-const char* password = "erro_404";
-const char* serverName = "http://192.168.137.1:7000";  // Substitua pelo IP do servidor Flask
+const char* ssid = "teste2";
+const char* password = "error404";
+const char* serverName = "http://10.154.48.178:7000/auth";
 
 int led1_pwm = 0;
 int led2_pwm = 0;
@@ -143,24 +143,63 @@ void getSettings() {
     http.begin(String(serverName) + "/get_settings");
     int httpResponseCode = http.GET();
 
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.print("Resposta do servidor: ");
+    Serial.println(response);
+
+    StaticJsonDocument<256> jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, response);
+
+    if (error) {
+      Serial.print("Erro ao processar JSON: ");
+      Serial.println(error.c_str());
+      return; // Sai da função se o JSON estiver inválido
+    }
+
+    // Atualiza os valores com os dados do JSON
+    led1_pwm = jsonDoc["led1_pwm"];
+    led2_pwm = jsonDoc["led2_pwm"];
+    led3_pwm = jsonDoc["led3_pwm"];
+    temperature_limit = jsonDoc["temperature_limit"];
+    humidity_limit = jsonDoc["humidity_limit"];
+    distance_limit = jsonDoc["distance_limit"];
+    Serial.println("Configurações atualizadas com sucesso!");
+  } else {
+    Serial.print("Erro ao obter configurações. Código HTTP: ");
+    Serial.println(httpResponseCode);
+  }
+
+
     if (httpResponseCode == 200) {
       String response = http.getString();
       StaticJsonDocument<256> jsonDoc;
-      deserializeJson(jsonDoc, response);
+      DeserializationError error = deserializeJson(jsonDoc, response);
 
+      if (error) {
+        Serial.print("Erro ao processar JSON: ");
+        Serial.println(error.c_str());
+        return; // Sai da função se o JSON estiver inválido
+      }
+
+      // Atualiza os valores com os dados do JSON
       led1_pwm = jsonDoc["led1_pwm"];
       led2_pwm = jsonDoc["led2_pwm"];
       led3_pwm = jsonDoc["led3_pwm"];
       temperature_limit = jsonDoc["temperature_limit"];
       humidity_limit = jsonDoc["humidity_limit"];
       distance_limit = jsonDoc["distance_limit"];
+      Serial.println("Configurações atualizadas com sucesso!");
     } else {
-      Serial.println("Erro ao obter configurações");
+      Serial.print("Erro ao obter configurações. Código HTTP: ");
+      Serial.println(httpResponseCode);
     }
     http.end();
   } else {
     Serial.println("Sem conexão WiFi");
   }
+  Serial.println(WiFi.localIP());
+
 }
 
 void updateOutputs() {
